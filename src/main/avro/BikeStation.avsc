@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "BikeStation",
+  "namespace": "bike",
+  "fields": [
+    { "name": "stationId", "type": "string" },
+    { "name": "stationName", "type": "string" },
+    { "name": "latitude", "type": "double" },
+    { "name": "longitude", "type": "double" },
+    { "name": "bikesAvailable", "type": "int" },
+    { "name": "emptyDocks", "type": "int" },
+    { "name": "totalDocks", "type": "int" },
+    { "name": "eBikes", "type": "int" },
+    { "name": "timestamp", "type": "string" }
+  ]
+}
