@@ -7,24 +7,22 @@ public class App {
 
     public static void main(String[] args) {
 
-        HttpClientService http = new HttpClientService();
-
         Producer producer = new Producer(BOOTSTRAP, TOPIC);
 
         try {
 
-            String json = http.getBikeStations();
+            producer.publishBikeData();
+            System.out.println("Bike data published successfully.");
 
-            producer.send("bikepoints", json);
+        } catch (Exception e) {
 
-            System.out.println("Bike data published to Kafka.");
-
-        }catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
+            System.err.println("Failed to publish bike data.");
             e.printStackTrace();
-        }
-        finally {
+
+        } finally {
+
             producer.close();
+
         }
     }
 }
