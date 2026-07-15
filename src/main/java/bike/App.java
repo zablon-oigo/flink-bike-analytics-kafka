@@ -12,11 +12,11 @@ public class App {
         try {
 
             producer.publishBikeData();
-            System.out.println("Bike data published successfully.");
+
+            System.out.println("Finished publishing bike stations.");
 
         } catch (Exception e) {
 
-            System.err.println("Failed to publish bike data.");
             e.printStackTrace();
 
         } finally {
