@@ -17,7 +17,12 @@ public class App {
 
             Producer producer = new Producer(BOOTSTRAP, TOPIC, schema);
 
-            producer.publishBikeData();
+            try{
+                producer.publishBikeData();
+
+            }finally{
+                producer.close();
+            }
             System.out.println("Finished publishing bike stations.");
 
         } catch (Exception e) {
