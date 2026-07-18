@@ -2,9 +2,6 @@ package bike;
 
 import java.util.Properties;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -17,15 +14,13 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 
 public class Producer {
 
-    private final KafkaProducer<String, GenericRecord> producer;
+    private final KafkaProducer<String, BikeStation> producer;
     private final HttpClientService httpClient;
     private final String topic;
-    private final Schema schema;
 
-    public Producer(String bootstrapServers, String topic, Schema schema) {
+    public Producer(String bootstrapServers, String topic) {
         this.topic = topic;
         this.httpClient = new HttpClientService();
-        this.schema = schema;
 
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -37,12 +32,14 @@ public class Producer {
     }
 
     public void publishBikeData() throws Exception {
+
         String jsonResponse = httpClient.fetchBikeData();
         JSONArray stations = new JSONArray(jsonResponse);
 
         System.out.println("Stations found: " + stations.length());
 
         for (int i = 0; i < stations.length(); i++) {
+
             JSONObject station = stations.getJSONObject(i);
 
             String stationIdRaw = station.optString("id");
@@ -51,54 +48,68 @@ public class Producer {
                     : stationIdRaw;
 
             String name = station.optString("commonName");
-            String terminalName = station.optString("terminalName");
 
             double latitude = station.optDouble("lat", 0.0);
             double longitude = station.optDouble("lon", 0.0);
 
-            int bikesAvailable = 0, standardBikes = 0, eBikes = 0, emptyDocks = 0, totalDocks = 0;
+            int bikesAvailable = 0;
+            int eBikes = 0;
+            int emptyDocks = 0;
+            int totalDocks = 0;
 
             JSONArray properties = station.optJSONArray("additionalProperties");
+
             if (properties != null) {
                 for (int j = 0; j < properties.length(); j++) {
-                    JSONObject prop = properties.getJSONObject(j);
-                    String key = prop.optString("key");
-                    String val = prop.optString("value", "0");
 
-                    if ("NbBikes".equals(key)) {
-                        bikesAvailable = parseIntSafe(val);
-                    } else if ("NbStandardBikes".equals(key)) {
-                        standardBikes = parseIntSafe(val);
-                    } else if ("NbEBikes".equals(key)) {
-                        eBikes = parseIntSafe(val);
-                    } else if ("NbEmptyDocks".equals(key)) {
-                        emptyDocks = parseIntSafe(val);
-                    } else if ("NbDocks".equals(key)) {
-                        totalDocks = parseIntSafe(val);
+                    JSONObject prop = properties.getJSONObject(j);
+
+                    String key = prop.optString("key");
+                    String value = prop.optString("value", "0");
+
+                    switch (key) {
+                        case "NbBikes":
+                            bikesAvailable = parseIntSafe(value);
+                            break;
+
+                        case "NbEBikes":
+                            eBikes = parseIntSafe(value);
+                            break;
+
+                        case "NbEmptyDocks":
+                            emptyDocks = parseIntSafe(value);
+                            break;
+
+                        case "NbDocks":
+                            totalDocks = parseIntSafe(value);
+                            break;
                     }
                 }
             }
 
-            GenericRecord record = new GenericData.Record(schema);
-            record.put("stationId", stationId);
-            record.put("stationName", name);
-            record.put("latitude", latitude);
-            record.put("longitude", longitude);
-            record.put("bikesAvailable", bikesAvailable);
-            record.put("emptyDocks", emptyDocks);
-            record.put("totalDocks", totalDocks);
-            record.put("eBikes", eBikes);
-            record.put("timestamp", String.valueOf(System.currentTimeMillis()));
+            BikeStation bikeStation = new BikeStation();
 
-            ProducerRecord<String, GenericRecord> producerRecord =
-                    new ProducerRecord<>(topic, stationId, record);
+            bikeStation.setStationId(stationId);
+            bikeStation.setStationName(name);
+            bikeStation.setLatitude(latitude);
+            bikeStation.setLongitude(longitude);
+            bikeStation.setBikesAvailable(bikesAvailable);
+            bikeStation.setEmptyDocks(emptyDocks);
+            bikeStation.setTotalDocks(totalDocks);
+            bikeStation.setEBikes(eBikes);
+            bikeStation.setTimestamp(String.valueOf(System.currentTimeMillis()));
+
+            ProducerRecord<String, BikeStation> producerRecord =
+                    new ProducerRecord<>(topic, stationId, bikeStation);
 
             RecordMetadata metadata = producer.send(producerRecord).get();
 
-            System.out.printf("Published %s -> topic=%s partition=%d offset=%d%n",
-                    stationId, metadata.topic(), metadata.partition(), metadata.offset());
-
-            Thread.sleep(100);
+            System.out.printf(
+                    "Published %s -> topic=%s partition=%d offset=%d%n",
+                    stationId,
+                    metadata.topic(),
+                    metadata.partition(),
+                    metadata.offset());
         }
 
         producer.flush();
